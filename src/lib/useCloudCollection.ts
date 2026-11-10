@@ -6,7 +6,7 @@ type RecordWithId = { id: string }
 type Update<T> = T[] | ((old: T[]) => T[])
 export const demoMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('demo') === '1'
 
-function demoInitial(name: 'tasks' | 'matches'): RecordWithId[] {
+function demoInitial(name: 'tasks' | 'matches'): Array<RecordWithId & Record<string, unknown>> {
   if (name === 'matches') return [{
     id: 'example-match',
     opponent: 'الفريق المنافس (تجريبي)',
