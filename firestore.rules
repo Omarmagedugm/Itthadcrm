@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function staffPath() { return /databases/$(database)/documents/staff/$(request.auth.uid); }
+    function active() {
+      return signedIn() && exists(staffPath()) && get(staffPath()).data.active == true;
+    }
+    function role() { return get(staffPath()).data.role; }
+    function admin() { return active() && role() == 'admin'; }
+    function editor() {
+      return active() && role() in ['admin', 'editor', 'designer'];
+    }
+    function reviewer() { return active() && role() == 'reviewer'; }
+    function validTask() {
+      return request.resource.data.keys().hasAll(['title','type','status','owner','due','platform','notes','createdAt'])
+        && request.resource.data.keys().hasOnly(['title','type','status','owner','due','platform','notes','createdAt'])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 160
+        && request.resource.data.type in ['خبر','تصميم','فيديو','ريلز','مقال']
+        && request.resource.data.status in ['فكرة','قيد التنفيذ','مراجعة','جاهز للنشر','منشور']
+        && request.resource.data.owner is string
+        && request.resource.data.due is string
+        && request.resource.data.platform is string
+        && request.resource.data.notes is string
+        && request.resource.data.createdAt is string;
+    }
+    function validMatch() {
+      return request.resource.data.keys().hasAll(['opponent','date','venue','competition','score'])
+        && request.resource.data.keys().hasOnly(['opponent','date','venue','competition','score'])
+        && request.resource.data.opponent is string
+        && request.resource.data.opponent.size() > 0
+        && request.resource.data.opponent.size() <= 160
+        && request.resource.data.date is string
+        && request.resource.data.venue is string
+        && request.resource.data.competition is string
+        && request.resource.data.score is string;
+    }
+    match /staff/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || admin());
+      allow list: if admin();
+      allow create, update: if admin()
+        && request.resource.data.keys().hasOnly(['role','active','email'])
+        && request.resource.data.keys().hasAll(['role','active','email'])
+        && request.resource.data.role in ['admin','editor','designer','reviewer']
+        && request.resource.data.active is bool
+        && request.resource.data.email is string;
+      allow delete: if admin() && uid != request.auth.uid;
+    }
+    match /workspaces/itthadcrm/tasks/{taskId} {
+      allow read: if active();
+      allow create: if editor() && validTask();
+      allow update: if validTask() && (editor()
+        || (reviewer() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])));
+      allow delete: if editor();
+    }
+    match /workspaces/itthadcrm/matches/{matchId} {
+      allow read: if active();
+      allow create, update: if editor() && validMatch();
+      allow delete: if editor();
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
