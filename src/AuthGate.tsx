@@ -3,6 +3,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } fr
 import { doc, onSnapshot } from 'firebase/firestore'
 import { auth, db, firebaseConfigured, projectConflict } from './lib/firebase'
 import App from './App'
+import { demoMode } from './lib/useCloudCollection'
 
 type Staff = { role: string; active: boolean; email?: string }
 export default function AuthGate() {
@@ -29,7 +30,8 @@ export default function AuthGate() {
       setChecking(false)
     }, err => { setError(err.message); setChecking(false) })
   }, [user])
-  if (!firebaseConfigured) return <div className="auth-screen"><div className="auth-card"><div className="brand-mark">IT</div><h1>استوديو الاتحاد</h1><p>{projectConflict ? 'تم رفض إعدادات Firebase لأنها تخص مشروعًا آخر. أنشئ Firebase مستقل للاستوديو ولا تستخدم بيانات القناة أو البورتفوليو.' : 'لسه مطلوب إعداد Firebase مستقل للمشروع.'} انسخ <code>.env.example</code> إلى <code>.env.local</code> وأضف إعدادات تطبيق الويب الخاصة بالقناة، ثم شغّل المشروع.</p><span>بيانات اعتماد السيرفر لا تُحفظ داخل كود الواجهة.</span></div></div>
+  if (demoMode) return <><div className="demo-ribbon"><span>وضع المعاينة التجريبية — البيانات محفوظة في متصفحك فقط</span><a href="/">صفحة تسجيل الدخول</a></div><App key="demo-preview"/></>
+  if (!firebaseConfigured) return <div className="auth-screen"><div className="auth-card"><div className="brand-mark">IT</div><h1>استوديو الاتحاد</h1><p>{projectConflict ? 'تم رفض إعدادات Firebase لأنها تخص مشروعًا آخر. أنشئ Firebase مستقل للاستوديو ولا تستخدم بيانات القناة أو البورتفوليو.' : 'لسه مطلوب إعداد Firebase مستقل للمشروع.'} انسخ <code>.env.example</code> إلى <code>.env.local</code> وأضف إعدادات تطبيق Firebase المستقل الخاص بالاستوديو، ثم شغّل المشروع.</p><span>بيانات اعتماد السيرفر لا تُحفظ داخل كود الواجهة.</span></div></div>
   if (loading || checking) return <div className="auth-screen"><div className="auth-card">جارٍ التحقق من الحساب...</div></div>
   if (user && !staff?.active) return <div className="auth-screen"><div className="auth-card"><h2>الحساب غير مُصرح له</h2><p>يجب إضافة مستند <code>staff/{user.uid}</code> في Firestore بواسطة مسؤول النظام وتحديد <code>active: true</code> و <code>role: "admin"</code> للمسؤول الأول.</p><p>معرّف المستخدم: <code>{user.uid}</code></p><button className="secondary-btn" onClick={() => auth && signOut(auth)}>تسجيل الخروج</button></div></div>
   if (user && staff?.active) return <><div className="session-bar"><span>متصل: {user.email} • {staff.role}</span><button onClick={() => auth && signOut(auth)}>تسجيل الخروج</button></div><App key={user.uid}/></>
